@@ -1,257 +1,251 @@
-# Assignment Requirements
+# Event Ticketing Platform with Dynamic Pricing
 
-- Duration: 7 days from receipt
-- Stack: Next.js 15, NestJS/ExpressJS, Turborepo, Drizzle ORM, PostgreSQL
+A full-stack event ticketing platform where ticket prices automatically adjust based on time until event, booking velocity, and remaining inventory.
 
-**NOTE:** You are free to fork this repository, complete the assignment in your own fork, and **retain full ownership of your code**. Please just add me as a collaborator during the evaluation process so I can review your submission.
+## Stack
 
-## What You're Building
+- **Frontend**: Next.js 15 with App Router
+- **Backend**: NestJS REST API
+- **Database**: PostgreSQL with Drizzle ORM
+- **Monorepo**: Turborepo
+- **Language**: TypeScript (strict mode)
 
-A full-stack event ticketing platform with dynamic pricing. Ticket prices automatically adjust based on time until event, booking velocity, and remaining inventory.
+## Features
 
-## Technical Stack
+- **Dynamic Pricing Engine**: Three weighted rules (time-based, demand-based, inventory-based) combine to calculate real-time ticket prices
+- **Concurrency Control**: Database transactions prevent overbooking when multiple users book simultaneously
+- **Real-time Updates**: Frontend polls for price updates every 30 seconds
+- **Analytics**: Event-specific and system-wide metrics
 
-**Required:**
+## Prerequisites
 
-- Monorepo: Turborepo (already configured)
-- Frontend: Next.js 15 with App Router (starter provided)
-- Backend: NestJS or Express (your choice)
-- Database: PostgreSQL with Drizzle ORM
-- Language: TypeScript strict mode
+- **Node.js**: Version 22 or higher
+- **PostgreSQL**: Version 12 or higher
+- **pnpm**: Version 9 or higher
 
-**Optional (bonus points):**
-
-- Redis for caching
-- Docker Compose for easy local setup
-
-## Core Requirements
-
-**1. Database Schema**
-
-Design and implement schema for events and bookings.
-
-**Event must include:**
-
-- Basic info: name, date, venue, description
-- Capacity: total tickets, booked tickets
-- Pricing: base price, current price, floor, ceiling
-- Pricing rules configuration (stored as JSON)
-
-**Booking must include:**
-
-- Reference to event
-- User email
-- Quantity
-- Price paid (snapshot at booking time)
-- Booking timestamp
-
-The database package is set up with Drizzle. You need to:
-
-- Create `src/schema.ts` with your table definitions
-- Create `src/index.ts` to export the database client
-- Create `src/seed.ts` to populate sample data
-
-**2. Dynamic Pricing Engine**
-
-This is the core challenge. Implement logic that calculates ticket price based on three rules:
-
-**Time-Based Rule**
-
-Price increases as event date approaches.
-
-Example: Base price for events 30+ days out, +20% for events within 7 days, +50% for events tomorrow.
-
-**Demand-Based Rule**
-
-Price increases when booking velocity is high.
-
-Example: If more than 10 bookings happened in the last hour, increase price by 15%.
-
-**Inventory-Based Rule**
-
-Price increases as tickets sell out.
-
-Example: When less than 20% of tickets remain, increase price by 25%.
-
-**Implementation requirements:**
-
-- Each rule has a configurable weight (via environment variables)
-- Rules combine to produce final price
-- Price must respect floor (minimum) and ceiling (maximum)
-- Price calculation must be deterministic and testable
-- Formula: currentPrice = basePrice × (1 + sum of weighted adjustments)
-
-**3. API Endpoints**
-
-Build a REST API with these endpoints:
-
-**Events**
-
-- `GET /events` - List all events with current price and availability
-- `GET /events/:id` - Get single event details with price breakdown
-- `POST /events` - Create new event (simple auth is fine)
-
-**Bookings**
-
-- `POST /bookings` - Book tickets (body: eventId, userEmail, quantity)
-- `GET /bookings?eventId=:id` - List bookings for an event
-
-**Analytics**
-
-- `GET /analytics/events/:id` - Get metrics for an event (total sold, revenue, average price, remaining)
-- `GET /analytics/summary` - System-wide metrics
-
-**Development**
-
-- `POST /seed` - Seed database with sample events
-
-**4. Concurrency Control**
-
-**Critical requirement:** Prevent overselling when multiple users book simultaneously.
-When only 1 ticket remains and 2 users try to book at the same time:
-
-- Only 1 booking should succeed
-- The other should receive a clear error
-- No tickets should be oversold
-
-You must:
-
-- Implement proper transaction handling with row-level locking
-- Write an automated test that proves this works
-
-Example test structure:
-
-```ts
-typescriptdescribe("Concurrent Bookings", () => {
-  it("prevents overbooking of last ticket", async () => {
-    // Setup: Create event with 1 ticket remaining
-    // Execute: Make 2 simultaneous booking requests
-    // Assert: Exactly 1 succeeds, 1 fails with proper error
-  });
-});
+Install pnpm globally if you haven't:
+```bash
+npm install -g pnpm@9
 ```
 
-**5. Frontend Pages**
+## Installation
 
-Build these pages using Next.js App Router:
+### 1. Install Dependencies
 
-**Event List (`/events`)**
+```bash
+pnpm install
+```
 
-- Display all upcoming events
-- Show name, date, venue, current price, tickets remaining
-- Click event to view details
+### 2. Set Up Environment Variables
 
-**Event Detail (`/events/[id]`)**
+Run the setup script to create `.env` files:
 
-- Full event information
-- Price breakdown showing base price and adjustments from each rule
-- Booking form with quantity selector
-- Real-time price updates (polling every 30 seconds is fine)
+```bash
+chmod +x scripts/setup-env.sh
+./scripts/setup-env.sh
+```
 
-**Booking Confirmation (`/bookings/success`)**
+Then edit the `.env` files and update `DATABASE_URL` with your PostgreSQL credentials:
 
-- Show booking details after successful purchase
-- Display price paid vs current price
+**Root `.env`:**
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/ticketing_platform
+PORT=3001
+API_KEY=dev-api-key-2024
+FRONTEND_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:3001
+PRICING_RULE_TIME_WEIGHT=0.4
+PRICING_RULE_DEMAND_WEIGHT=0.35
+PRICING_RULE_INVENTORY_WEIGHT=0.25
+```
 
-**User Bookings (`/my-bookings`)**
+**`apps/api/.env`** and **`packages/database/.env`** should have the same `DATABASE_URL`.
 
-- List user's bookings
-- Show event name, tickets, price paid
-- Compare price paid to current price
+### 3. Create Database
 
-**Technical requirements:**
+Create a PostgreSQL database:
+```bash
+createdb ticketing_platform
+```
 
-- Use Server Components where appropriate
-- Handle form submission with Server Actions
-- Show loading states and error messages
-- Responsive design
+Or using Docker:
+```bash
+docker run --name ticketing-postgres \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=ticketing_platform \
+  -p 5432:5432 \
+  -d postgres
+```
 
-**Testing Requirements**
+### 4. Initialize Database Schema and Seed Data
 
-**You must include:**
+```bash
+cd packages/database
+pnpm db:push
+pnpm db:seed
+cd ../..
+```
 
-1. Unit tests for pricing calculation logic
-   - Test each rule independently
-   - Test combined rules
-   - Test floor/ceiling constraints
+## Running the Application
 
-2. Integration tests for booking flow
+### Development Mode (All Apps)
 
-- Complete flow from price calculation to booking confirmation
+From the root directory:
+```bash
+pnpm dev
+```
 
-3. Concurrency test (mandatory)
+This starts:
+- Frontend at `http://localhost:3000`
+- Backend API at `http://localhost:3001`
 
-- Automated test proving your solution prevents overbooking
+### Individual Commands
 
-Minimum 70% coverage for pricing logic.
+**Start Frontend:**
+```bash
+cd apps/web
+pnpm dev
+```
 
-**Deliverables**
+**Start Backend:**
+```bash
+cd apps/api
+pnpm dev
+```
 
-**1. GitHub Repository**
+## Running Tests
 
-Include:
+### All Tests
+```bash
+cd apps/api
+pnpm test
+```
 
-- All source code
-- README.md with setup instructions
-- DESIGN.md explaining your approach
-- .env.example files
-- Working seed script
+### With Coverage
+```bash
+cd apps/api
+pnpm test:cov
+```
 
-**2. README.md**
+### Watch Mode
+```bash
+cd apps/api
+pnpm test:watch
+```
 
-Must contain:
+### Run Concurrency Test
+```bash
+cd apps/api
+pnpm test concurrency.test.ts
+```
 
-- Prerequisites (Node version, database, etc)
-- Installation steps (should work in under 5 commands)
-- How to run the application
-- How to run tests
-- Environment variables documentation
+## Project Structure
 
-**3. DESIGN.md**
+```
+ticketing-platform-monorepo/
+├── apps/
+│   ├── api/                 # NestJS backend
+│   │   ├── src/
+│   │   │   ├── events/      # Events controller/service
+│   │   │   ├── bookings/    # Bookings with concurrency control
+│   │   │   ├── analytics/   # Analytics endpoints
+│   │   │   ├── pricing/     # Dynamic pricing engine
+│   │   │   └── main.ts      # Application entry point
+│   │   └── package.json
+│   └── web/                 # Next.js frontend
+│       ├── app/
+│       │   ├── page.tsx           # Events list (home)
+│       │   ├── events/            # Event list and detail pages
+│       │   ├── bookings/success/  # Booking confirmation
+│       │   └── my-bookings/       # User bookings
+│       └── lib/
+│           └── api.ts             # API client functions
+├── packages/
+│   ├── database/            # Shared database package
+│   │   ├── src/
+│   │   │   ├── schema.ts    # Drizzle schema
+│   │   │   ├── index.ts     # Database client
+│   │   │   └── seed.ts      # Seed script
+│   │   └── package.json
+│   ├── eslint-config/        # Shared ESLint config
+│   └── typescript-config/    # Shared TypeScript config
+├── scripts/
+│   └── setup-env.sh          # Environment setup script
+├── DESIGN.md                 # Architecture and design decisions
+└── package.json              # Root package.json
+```
 
-Write 300-500 words explaining:
+## API Endpoints
 
-- Your pricing algorithm implementation and design choices
-- How you solved the concurrency problem
-- Monorepo architecture decisions
-- Trade-offs you made
-- What you would improve with more time
+### Events
+- `GET /events` - List all events with current price and availability
+- `GET /events/:id` - Get event details with price breakdown
+- `POST /events` - Create new event (requires `X-API-Key` header)
+- `POST /events/seed` - Seed database with sample events
 
-**4. Working Application**
+### Bookings
+- `POST /bookings` - Book tickets (body: `eventId`, `userEmail`, `quantity`)
+- `GET /bookings?eventId=:id` - List bookings for an event
 
-We should be able to:
+### Analytics
+- `GET /analytics/events/:id` - Event-specific metrics
+- `GET /analytics/summary` - System-wide metrics
 
-- Clone your repo
-- Run setup commands
-- Seed the database
-- Access the working application
-- Run your tests and see them pass
+### Example API Usage
 
-## What's NOT Required
+**List all events:**
+```bash
+curl http://localhost:3001/events
+```
 
-To keep the scope reasonable for 7 days, you do **not** need to implement:
+**Create a booking:**
+```bash
+curl -X POST http://localhost:3001/bookings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventId": 1,
+    "userEmail": "user@example.com",
+    "quantity": 2
+  }'
+```
 
-**Payment Processing**
+**Get event analytics:**
+```bash
+curl http://localhost:3001/analytics/events/1
+```
 
-- No Stripe/PayPal integration needed
-- No actual payment gateway
-- When a booking is created, just record the price - assume payment happened
+## Environment Variables
 
-**Authentication System**
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `PORT` | API server port | 3001 |
+| `API_KEY` | API key for protected endpoints | dev-api-key-2024 |
+| `FRONTEND_URL` | Frontend URL for CORS | http://localhost:3000 |
+| `NEXT_PUBLIC_API_URL` | API URL for frontend | http://localhost:3001 |
+| `PRICING_RULE_TIME_WEIGHT` | Weight for time-based pricing | 0.4 |
+| `PRICING_RULE_DEMAND_WEIGHT` | Weight for demand-based pricing | 0.35 |
+| `PRICING_RULE_INVENTORY_WEIGHT` | Weight for inventory-based pricing | 0.25 |
 
-- No user registration/login required
-- For the booking flow, just ask for email address
-- Simple admin authentication (hardcoded API key is fine) for creating events
+## Troubleshooting
 
-**Email Notifications**
+### Database Connection Issues
+- Ensure PostgreSQL is running: `pg_isready` or `docker ps`
+- Verify `DATABASE_URL` is correct in all `.env` files
+- Check if database exists: `psql -l`
 
-- No need to send booking confirmations
-- No email service integration
+### Port Already in Use
+- Kill the process using the port:
+  - `lsof -ti:3001 | xargs kill` (for API)
+  - `lsof -ti:3000 | xargs kill` (for Frontend)
 
-**Advanced Features**
+### Test Failures
+- Ensure database is set up and seeded
+- Check that environment variables are set correctly
 
-- No refunds or cancellation flow
-- No QR codes or ticket PDFs
-- No seat selection or ticket tiers
+## Additional Notes
 
-Focus on the core challenges: dynamic pricing algorithm and concurrency control. Everything else should be kept minimal.
+- The pricing engine recalculates prices in real-time based on time, demand, and inventory
+- Prices update every 30 seconds on the frontend (polling)
+- Concurrency is handled via database transactions with row-level locking
+- See `DESIGN.md` for detailed architecture decisions

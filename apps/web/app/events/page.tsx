@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fetchEvents } from "../lib/api";
+import { fetchEvents } from "../../lib/api";
 
 export default async function EventsPage() {
   const events = await fetchEvents();
@@ -88,3 +88,4 @@ export default async function EventsPage() {
     </div>
   );
 }
+
